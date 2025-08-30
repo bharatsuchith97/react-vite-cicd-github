@@ -22,13 +22,22 @@ jobs:
       - name: Get latest tag
         id: get_tag
         run: |
-          latest_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          if git describe --tags --abbrev=0 >/dev/null 2>&1; then
+            latest_tag=$(git describe --tags --abbrev=0)
+          else
+            latest_tag=""
+          fi
           echo "latest_tag=$latest_tag" >> $GITHUB_OUTPUT
 
       - name: Decide bump type
         id: bump_type
         run: |
-          commits=$(git log ${{ steps.get_tag.outputs.latest_tag }}..HEAD --pretty=format:"%s")
+          if [ -z "${{ steps.get_tag.outputs.latest_tag }}" ]; then
+            commits=$(git log --pretty=format:"%s")
+          else
+            commits=$(git log ${{ steps.get_tag.outputs.latest_tag }}..HEAD --pretty=format:"%s")
+          fi
+
           echo "Commits since last tag:"
           echo "$commits"
 
