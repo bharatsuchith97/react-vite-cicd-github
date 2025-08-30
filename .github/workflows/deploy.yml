@@ -14,6 +14,65 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
+      - name: Set up Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Get latest tag
+        id: get_tag
+        run: |
+          latest_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          echo "latest_tag=$latest_tag" >> $GITHUB_OUTPUT
+
+      - name: Decide bump type
+        id: bump_type
+        run: |
+          commits=$(git log ${{ steps.get_tag.outputs.latest_tag }}..HEAD --pretty=format:"%s")
+          echo "Commits since last tag:"
+          echo "$commits"
+
+          bump="patch"
+
+          if echo "$commits" | grep -q "BREAKING CHANGE"; then
+            bump="major"
+          elif echo "$commits" | grep -q "^feat"; then
+            bump="minor"
+          elif echo "$commits" | grep -q "^fix"; then
+            bump="patch"
+          fi
+
+          echo "bump=$bump" >> $GITHUB_OUTPUT
+
+      - name: Bump version
+        id: bump_tag
+        run: |
+          old_tag=${{ steps.get_tag.outputs.latest_tag }}
+          IFS='.' read -r major minor patch <<<"${old_tag#v}"
+
+          case ${{ steps.bump_type.outputs.bump }} in
+            major)
+              major=$((major+1))
+              minor=0
+              patch=0
+              ;;
+            minor)
+              minor=$((minor+1))
+              patch=0
+              ;;
+            patch)
+              patch=$((patch+1))
+              ;;
+          esac
+
+          new_tag="v$major.$minor.$patch"
+          echo "new_tag=$new_tag" >> $GITHUB_OUTPUT
+
+      - name: Create and push tag
+        run: |
+          git tag ${{ steps.bump_tag.outputs.new_tag }}
+          git push origin ${{ steps.bump_tag.outputs.new_tag }}
+
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
