@@ -53,28 +53,35 @@ jobs:
 
           echo "bump=$bump" >> $GITHUB_OUTPUT
 
-      - name: Bump version
+       - name: Bump version
         id: bump_tag
         run: |
           old_tag=${{ steps.get_tag.outputs.latest_tag }}
-          IFS='.' read -r major minor patch <<<"${old_tag#v}"
 
-          case ${{ steps.bump_type.outputs.bump }} in
-            major)
-              major=$((major+1))
-              minor=0
-              patch=0
-              ;;
-            minor)
-              minor=$((minor+1))
-              patch=0
-              ;;
-            patch)
-              patch=$((patch+1))
-              ;;
-          esac
+          if [ -z "$old_tag" ]; then
+            # First tag case
+            new_tag="v1.0.0"
+          else
+            IFS='.' read -r major minor patch <<<"${old_tag#v}"
 
-          new_tag="v$major.$minor.$patch"
+            case ${{ steps.bump_type.outputs.bump }} in
+              major)
+                major=$((major+1))
+                minor=0
+                patch=0
+                ;;
+              minor)
+                minor=$((minor+1))
+                patch=0
+                ;;
+              patch)
+                patch=$((patch+1))
+                ;;
+            esac
+
+            new_tag="v$major.$minor.$patch"
+          fi
+
           echo "new_tag=$new_tag" >> $GITHUB_OUTPUT
 
       - name: Create and push tag
